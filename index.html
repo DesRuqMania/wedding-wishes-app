@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wedding Wishes</title>
+  <script src="https://unpkg.com/@supabase/supabase-js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f7f3f0;
+      padding: 20px;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      color: #c94f7c;
+    }
+    #wish-form {
+      max-width: 500px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+    }
+    input, textarea {
+      margin: 10px 0;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    button {
+      background-color: #c94f7c;
+      color: white;
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .wish {
+      margin: 20px auto;
+      padding: 15px;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      max-width: 500px;
+      position: relative;
+    }
+    .name {
+      font-weight: bold;
+      color: #c94f7c;
+    }
+    .like-btn {
+      margin-top: 10px;
+      background: #ffd700;
+      border: none;
+      border-radius: 5px;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+    .sparkle {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      background: url('https://upload.wikimedia.org/wikipedia/commons/6/6b/Sparkle-animation.gif') center center no-repeat;
+      background-size: contain;
+      animation: sparkle 1s ease-out;
+    }
+    @keyframes sparkle {
+      from {opacity: 1;}
+      to {opacity: 0;}
+    }
+  </style>
+</head>
+<body>
+  <h1>Send Your Wedding Wishes</h1>
+  <form id="wish-form">
+    <input type="text" id="name" placeholder="Your Name" required />
+    <textarea id="message" placeholder="Your heartfelt wish..." rows="4"></textarea>
+    <button type="submit">Post Wish</button>
+  </form>
+  <div id="wishes"></div>
+
+  <script>
+    const SUPABASE_URL = 'https://YOUR-SUPABASE-URL.supabase.co';
+    const SUPABASE_KEY = 'YOUR-SUPABASE-ANON-KEY';
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const form = document.getElementById('wish-form');
+    const wishesContainer = document.getElementById('wishes');
+
+    async function fetchWishes() {
+      const { data, error } = await supabase
+        .from('wishes')
+        .select('*')
+        .order('likes', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching wishes:', error);
+        return;
+      }
+
+      renderWishes(data);
+    }
+
+    async function postWish(name, message) {
+      const { data, error } = await supabase
+        .from('wishes')
+        .insert([{ name, message, likes: 0 }]);
+
+      if (error) {
+        console.error('Error posting wish:', error);
+      } else {
+        fetchWishes();
+      }
+    }
+
+    async function likeWish(id) {
+      const { data, error } = await supabase.rpc('increment_likes', { row_id: id });
+      if (error) console.error('Error liking wish:', error);
+      else fetchWishes();
+    }
+
+    function renderWishes(wishes) {
+      wishesContainer.innerHTML = '';
+      wishes.forEach(wish => {
+        const wishEl = document.createElement('div');
+        wishEl.className = 'wish';
+        wishEl.innerHTML = `
+          <div class="sparkle"></div>
+          <p class="name">${wish.name}</p>
+          <p>${wish.message}</p>
+          <button class="like-btn" onclick="likeWish(${wish.id})">❤️ Like (${wish.likes})</button>
+        `;
+        wishesContainer.appendChild(wishEl);
+        setTimeout(() => wishEl.querySelector('.sparkle').remove(), 1000);
+      });
+    }
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = document.getElementById('name').value.trim();
+      const message = document.getElementById('message').value.trim();
+      if (!name) {
+        alert("Name is required!");
+        return;
+      }
+      postWish(name, message);
+      form.reset();
+    });
+
+    window.likeWish = likeWish;
+    fetchWishes();
+  </script>
+</body>
+</html>
